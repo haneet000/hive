@@ -39,6 +39,8 @@ services:
       dockerfile: Dockerfile
     container_name: hive_frontend
     restart: always
+    environment:
+      VITE_API_TARGET: http://backend:8000
     ports:
       - "5173:5173"
     depends_on:
