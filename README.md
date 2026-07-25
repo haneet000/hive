@@ -4,23 +4,31 @@ A production-ready e-commerce data pipeline, backend service, analytics API, and
 
 ---
 
-## ⚡ Quick Start Guide
+## ⚡ Quick Start Guide (1-Command Docker Setup)
 
-### Option A: Run Entire Stack via Docker Compose (Recommended 1-Command Setup)
+### Run Entire Application Stack via Docker Compose
 
-Run the entire application stack (PostgreSQL + Automated Migrations + Feed Ingestion + FastAPI Backend + React Frontend) with a single command:
+Run the entire application stack (PostgreSQL + Automatic Schema Migrations + Feed Data Ingestion + FastAPI Backend + React Frontend Dashboard) with a single command:
 
 ```bash
 docker-compose up --build
 ```
 
+That's it! Docker automatically provisions and orchestrates all services:
+
+1. **Database Service (`db`)**: Launches PostgreSQL 15 database container.
+2. **Backend & Ingestion Service (`backend`)**: Waits for PostgreSQL, executes `alembic upgrade head`, runs `python -m scripts.ingest`, and launches the FastAPI REST server.
+3. **Frontend Dashboard Service (`frontend`)**: Serves the React Vite dashboard.
+
 - **Frontend Dashboard**: [http://localhost:5173](http://localhost:5173)
 - **FastAPI Backend OpenAPI Docs**: [http://localhost:8000/docs](http://localhost:8000/docs)
-- **Health Check**: [http://localhost:8000/](http://localhost:8000/)
+- **API Health Check**: [http://localhost:8000/](http://localhost:8000/)
 
 ---
 
-### Option B: Run Locally Without Docker (Instant SQLite Setup)
+### Alternative: Local Development Setup Without Docker
+
+If you prefer to run services manually on your local host using SQLite:
 
 ```bash
 # 1. Copy environment configuration
@@ -57,17 +65,31 @@ npm run dev
 
 ### 1. Automated Test Suite Output
 ```text
-$ pytest
+$ pytest -v
 ============================= test session starts ==============================
 platform darwin -- Python 3.12.10, pytest-9.0.2, pluggy-1.6.0
 rootdir: /Users/haneet/Hive
 plugins: anyio-4.12.1, asyncio-1.3.0
 collected 18 items
 
-tests/test_api.py ............                                           [ 66%]
-tests/test_dedup.py .                                                    [ 72%]
-tests/test_normalizer.py ....                                            [ 94%]
-tests/test_orphans.py .                                                  [100%]
+tests/test_api.py::test_root_endpoint PASSED                             [  5%]
+tests/test_api.py::test_revenue_endpoint_completed_only PASSED           [ 11%]
+tests/test_api.py::test_revenue_endpoint_with_refunds PASSED             [ 16%]
+tests/test_api.py::test_revenue_endpoint_invalid_granularity PASSED      [ 22%]
+tests/test_api.py::test_top_customers_by_spend PASSED                    [ 27%]
+tests/test_api.py::test_customer_orders_found PASSED                     [ 33%]
+tests/test_api.py::test_customer_orders_not_found PASSED                 [ 38%]
+tests/test_api.py::test_repeat_purchase_rate PASSED                      [ 44%]
+tests/test_api.py::test_aov_by_city PASSED                               [ 50%]
+tests/test_api.py::test_ingestion_rejects_endpoint PASSED                [ 55%]
+tests/test_api.py::test_revenue_discrepancy_reconciliation PASSED        [ 61%]
+tests/test_api.py::test_repeat_purchase_rate_denominator PASSED          [ 66%]
+tests/test_dedup.py::test_deduplicate_orders_keeps_latest_date PASSED    [ 72%]
+tests/test_normalizer.py::test_parse_iso8601_dates PASSED                [ 77%]
+tests/test_normalizer.py::test_parse_dd_mm_yyyy_dates PASSED             [ 83%]
+tests/test_normalizer.py::test_parse_unix_epoch_seconds PASSED           [ 88%]
+tests/test_normalizer.py::test_parse_invalid_and_garbage_input PASSED    [ 94%]
+tests/test_orphans.py::test_orphaned_customer_orders PASSED              [100%]
 
 ======================== 18 passed, 2 warnings in 0.58s ========================
 ```
@@ -184,7 +206,7 @@ The pytest suite in [tests/](tests/) covers:
 
 Run tests via:
 ```bash
-pytest
+pytest -v
 ```
 
 ---
