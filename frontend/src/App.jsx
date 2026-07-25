@@ -2,6 +2,34 @@ import React, { useState, useEffect } from 'react';
 
 const API_BASE = '/api';
 
+function formatRejectReason(reasonStr) {
+  if (!reasonStr) return { category: 'UNKNOWN', badgeClass: 'badge-orphan', detail: '' };
+
+  if (reasonStr.startsWith('DUPLICATE_ORDER_ID_SUPERSEDED')) {
+    const detail = reasonStr.replace('DUPLICATE_ORDER_ID_SUPERSEDED:', '').trim();
+    return {
+      category: 'DUPLICATE SUPERSEDED',
+      badgeClass: 'badge-duplicate',
+      detail: detail ? `Audit note: ${detail}` : 'Superseded by later order timestamp'
+    };
+  }
+
+  if (reasonStr.startsWith('ORPHANED_CUSTOMER_ID')) {
+    const detail = reasonStr.replace('ORPHANED_CUSTOMER_ID:', '').trim();
+    return {
+      category: 'ORPHANED CUSTOMER ID',
+      badgeClass: 'badge-orphan',
+      detail: detail ? `Quarantine note: ${detail}` : 'Referenced customer missing from feed'
+    };
+  }
+
+  return {
+    category: 'VALIDATION WARNING',
+    badgeClass: 'badge-orphan',
+    detail: reasonStr
+  };
+}
+
 export default function App() {
   const [activeTab, setActiveTab] = useState('revenue');
 
@@ -23,14 +51,15 @@ export default function App() {
   const [cityAov, setCityAov] = useState(null);
   const [loadingCity, setLoadingCity] = useState(false);
 
-  // Customer Orders lookup state - set default to CUST-0104 (has orders with items)
+  // Customer Orders lookup state
   const [searchCustId, setSearchCustId] = useState('CUST-0104');
   const [customerOrders, setCustomerOrders] = useState(null);
   const [searchError, setSearchError] = useState(null);
   const [loadingCust, setLoadingCust] = useState(false);
 
-  // Ingestion Rejects state
-  const [rejects, setRejects] = useState(null);
+  // Ingestion Rejects state & Filter
+  const [rejects, setRejects] = useState([]);
+  const [rejectFilter, setRejectFilter] = useState('all');
   const [loadingRejects, setLoadingRejects] = useState(false);
 
   useEffect(() => {
@@ -107,13 +136,23 @@ export default function App() {
   useEffect(() => {
     if (activeTab === 'rejects') {
       setLoadingRejects(true);
-      fetch(`${API_BASE}/ingestion/rejects?limit=50`)
+      fetch(`${API_BASE}/ingestion/rejects?limit=100`)
         .then(res => res.json())
         .then(data => setRejects(data))
         .catch(err => console.error(err))
         .finally(() => setLoadingRejects(false));
     }
   }, [activeTab]);
+
+  // Filtered rejects
+  const filteredRejects = rejects.filter(r => {
+    if (rejectFilter === 'duplicates') return r.reason.startsWith('DUPLICATE_ORDER_ID_SUPERSEDED');
+    if (rejectFilter === 'orphans') return r.reason.startsWith('ORPHANED_CUSTOMER_ID');
+    return true;
+  });
+
+  const duplicateCount = rejects.filter(r => r.reason.startsWith('DUPLICATE_ORDER_ID_SUPERSEDED')).length;
+  const orphanCount = rejects.filter(r => r.reason.startsWith('ORPHANED_CUSTOMER_ID')).length;
 
   return (
     <div className="dashboard-container">
@@ -431,43 +470,77 @@ export default function App() {
       {activeTab === 'rejects' && (
         <div className="main-card">
           <div className="card-header">
-            <div className="card-title">Ingestion Validation Rejects Audit Log</div>
+            <div className="card-title">Ingestion Validation Audit Log</div>
+            <div className="controls">
+              <button
+                className={`filter-btn ${rejectFilter === 'all' ? 'active' : ''}`}
+                onClick={() => setRejectFilter('all')}
+              >
+                All Audit Rejects ({rejects.length})
+              </button>
+              <button
+                className={`filter-btn ${rejectFilter === 'duplicates' ? 'active' : ''}`}
+                onClick={() => setRejectFilter('duplicates')}
+              >
+                Duplicates ({duplicateCount})
+              </button>
+              <button
+                className={`filter-btn ${rejectFilter === 'orphans' ? 'active' : ''}`}
+                onClick={() => setRejectFilter('orphans')}
+              >
+                Orphaned Customer IDs ({orphanCount})
+              </button>
+            </div>
           </div>
 
           <div className="table-scroll-container">
             {loadingRejects ? (
-              <div className="loading">Loading reject logs...</div>
-            ) : rejects && rejects.length > 0 ? (
+              <div className="loading">Loading audit logs...</div>
+            ) : filteredRejects.length > 0 ? (
               <table>
                 <thead>
                   <tr>
-                    <th>ID</th>
-                    <th>Entity</th>
-                    <th>Entity ID</th>
-                    <th>Rejection / Quarantine Reason</th>
-                    <th>Timestamp</th>
+                    <th style={{ width: '60px' }}>ID</th>
+                    <th style={{ width: '90px' }}>Entity</th>
+                    <th style={{ width: '130px' }}>Entity ID</th>
+                    <th>Validation & Quarantine Reason</th>
+                    <th style={{ width: '170px' }}>Log Timestamp</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {rejects.map((r) => (
-                    <tr key={r.id}>
-                      <td>{r.id}</td>
-                      <td>
-                        <span className="badge badge-reject">{r.entity_type}</span>
-                      </td>
-                      <td>
-                        <code>{r.entity_id || '—'}</code>
-                      </td>
-                      <td style={{ color: '#fb7185', fontWeight: 500 }}>{r.reason}</td>
-                      <td style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>
-                        {new Date(r.created_at).toLocaleString()}
-                      </td>
-                    </tr>
-                  ))}
+                  {filteredRejects.map((r) => {
+                    const parsed = formatRejectReason(r.reason);
+                    return (
+                      <tr key={r.id}>
+                        <td><span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>#{r.id}</span></td>
+                        <td>
+                          <span className="badge badge-entity">{r.entity_type}</span>
+                        </td>
+                        <td>
+                          <code>{r.entity_id || '—'}</code>
+                        </td>
+                        <td>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                            <div>
+                              <span className={`badge ${parsed.badgeClass}`}>
+                                {parsed.category}
+                              </span>
+                            </div>
+                            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                              {parsed.detail}
+                            </div>
+                          </div>
+                        </td>
+                        <td style={{ color: 'var(--text-muted)', fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
+                          {new Date(r.created_at).toLocaleString()}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             ) : (
-              <div className="empty">No ingestion rejects found. Clean run!</div>
+              <div className="empty">No rejection records match the selected filter.</div>
             )}
           </div>
         </div>
