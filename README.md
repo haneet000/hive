@@ -4,48 +4,52 @@ A production-ready e-commerce data pipeline, backend service, analytics API, and
 
 ---
 
-## ⚡ Quick Start Guide & Verification
+## ⚡ Quick Start Guide
 
-### 1. Prerequisites
-- Python 3.10+
-- Node.js 18+
-- Docker & Docker Compose (optional, for local PostgreSQL)
+### Option A: Run Entire Stack via Docker Compose (Recommended 1-Command Setup)
 
-### 2. Quick Setup & Run Commands
+Run the entire application stack (PostgreSQL + Automated Migrations + Feed Ingestion + FastAPI Backend + React Frontend) with a single command:
 
 ```bash
-# Copy environment configuration
+docker-compose up --build
+```
+
+- **Frontend Dashboard**: [http://localhost:5173](http://localhost:5173)
+- **FastAPI Backend OpenAPI Docs**: [http://localhost:8000/docs](http://localhost:8000/docs)
+- **Health Check**: [http://localhost:8000/](http://localhost:8000/)
+
+---
+
+### Option B: Run Locally Without Docker (Instant SQLite Setup)
+
+```bash
+# 1. Copy environment configuration
 cp .env.example .env
 
-# Create virtual environment & install backend dependencies
+# 2. Create virtual environment & install backend dependencies
 python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
 
-# Run automated test suite (18/18 tests passing)
+# 3. Run automated test suite (18/18 tests passing)
 pytest
 
-# Apply database migrations
+# 4. Apply database migrations
 alembic upgrade head
 
-# Run data ingestion script
+# 5. Run data ingestion script
 python -m scripts.ingest
 
-# Start backend API (FastAPI)
+# 6. Start backend API (FastAPI)
 uvicorn app.main:app --reload --port 8000
 ```
-- Interactive OpenAPI Docs: [http://localhost:8000/docs](http://localhost:8000/docs)
-- Health Check: [http://localhost:8000/](http://localhost:8000/)
 
-### 3. Start Frontend Dashboard
-In a separate terminal tab:
+In a separate terminal tab, start the frontend dashboard:
 ```bash
 cd frontend
 npm install
 npm run dev
 ```
-- Frontend Dashboard: [http://localhost:5173](http://localhost:5173)
-- Verify Production Build: `cd frontend && npm run build` (outputs to `frontend/dist/`)
 
 ---
 
